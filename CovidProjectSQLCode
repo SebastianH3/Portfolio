@@ -1,0 +1,78 @@
+SELECT *
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths`
+WHERE continent is not null
+ORDER BY 3,4;
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths`
+WHERE continent is not null
+ORDER BY 1,2;
+
+-- Looking at Total Cases vs Total Deaths
+-- Shows likelihood of dying if you contract covid in your country
+SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 AS death_percentage
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths`
+WHERE location = "Poland" and continent is not null
+ORDER BY 1,2;
+
+-- Looking at the Total Cases vs Population
+-- Shows what % of population got covid
+SELECT location, date, population, total_cases, (total_cases/population)*100 AS infected_percentage
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths`
+WHERE location = "Poland" and continent is not null
+ORDER BY 1,2;
+
+-- Looking at countries with highest infection rate compared to population
+SELECT location, population, MAX(total_cases) AS highest_infection_count, MAX((total_cases/population))*100 AS infected_percentage
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths`
+WHERE continent is not null
+GROUP BY location, population
+ORDER BY 4 DESC;
+
+-- Showing countries with highest death count per capita
+SELECT location, MAX(total_deaths) AS total_death_count
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths`
+WHERE continent is not null
+GROUP BY location
+ORDER BY 2 DESC;
+
+-- Breakdown by continent
+SELECT location, MAX(total_deaths) AS total_death_count
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths`
+WHERE continent is null
+GROUP BY location
+ORDER BY 2 DESC;
+
+-- Global numbers
+SELECT date, SUM(new_cases) AS global_cases, SUM(new_deaths) AS global_deaths, SUM(new_deaths)/SUM(new_cases)*100 AS death_percentage
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths`
+WHERE continent is not null
+GROUP BY date
+ORDER BY 1,2;
+
+-- Looking at Total Population vs Vaccinations
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location,
+dea.date) AS rolling_vaccinations
+--, (rolling_vaccinations/population)*100
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths` dea
+JOIN `calm-metric-323718.portfolio_projects.CovidVaccinations` vac
+  ON dea.location = vac.location
+  and dea.date = vac.date
+WHERE dea.continent is not null
+ORDER BY 2,3;
+
+-- CTE
+WITH PopVsVac AS
+(SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location,
+dea.date) AS rolling_vaccinations
+FROM `calm-metric-323718.portfolio_projects.CovidDeaths` dea
+JOIN `calm-metric-323718.portfolio_projects.CovidVaccinations` vac
+  ON dea.location = vac.location
+  and dea.date = vac.date
+WHERE dea.continent is not null)
+SELECT *, (rolling_vaccinations/population)*100 AS rolling_vaccination_percentage
+FROM PopVsVac;
+
+-- Written in Google BigQuery SQL
